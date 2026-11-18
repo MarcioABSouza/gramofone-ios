@@ -79,7 +79,7 @@ struct LoginView: View {
                 }
 
                 Section {
-                    Text("Gramofone iOS 0.4.0")
+                    Text("Gramofone iOS 0.5.1")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }

@@ -3,8 +3,11 @@ import Foundation
 /// Sessão do app: login, renovação do token e restauração no boot.
 ///
 /// O access token (1 h) fica só em memória; o **refresh token** (365 dias) vai
-/// para o Keychain e é rotacionado a cada renovação — por isso aplicamos o novo
-/// sempre que o backend responde.
+/// para o Keychain e é rotacionado a cada renovação.
+///
+/// Sem rede o app entra em **sessão offline**: usa o último perfil salvo para
+/// abrir a interface e tocar o que está baixado, em vez de mandar o usuário de
+/// volta para o login. Nada além da UI/offline funciona até a rede voltar.
 @MainActor
 final class Session: ObservableObject {
     enum State: Equatable {
@@ -15,11 +18,7 @@ final class Session: ObservableObject {
 
     @Published private(set) var state: State = .loading
     @Published private(set) var serverURL: String = Settings.serverURL
-
-    var currentUser: PublicUser? {
-        if case .signedIn(let user) = state { return user }
-        return nil
-    }
+    @Published private(set) var isOfflineSession = false
 
     private(set) var client: APIClient?
     private(set) var accessToken: String?
@@ -27,12 +26,24 @@ final class Session: ObservableObject {
     private var didRestore = false
 
     private static let refreshAccount = "refresh-token"
+    private static let cachedUserKey = "gramofone.cachedUser"
+
+    var currentUser: PublicUser? {
+        if case .signedIn(let user) = state { return user }
+        return nil
+    }
 
     // MARK: - Ciclo de vida
 
     func restoreOnce() async {
         guard !didRestore else { return }
         didRestore = true
+        await restore()
+    }
+
+    /// Chamado quando a rede volta: valida a sessão que abriu em modo offline.
+    func revalidate() async {
+        guard isOfflineSession else { return }
         await restore()
     }
 
@@ -49,17 +60,29 @@ final class Session: ObservableObject {
             return
         }
 
+        // Mantém o refresh token em memória mesmo se a renovação falhar offline:
+        // é com ele que a fila de scrobble volta a andar quando a rede retornar.
+        refreshToken = stored
+
         do {
             let refreshed = try await client.refresh(refreshToken: stored)
             apply(tokens: refreshed)
             let user = try await client.me(token: refreshed.token)
+            cache(user: user)
+            isOfflineSession = false
             state = .signedIn(user)
         } catch let error as APIError where error.isUnauthorized {
             clearSession()
+            removeCachedUser()
+            isOfflineSession = false
             state = .signedOut(message: "Sessão expirada. Entre novamente.")
         } catch {
-            // Servidor fora do ar: mantém o refresh token para tentar no próximo boot.
-            state = .signedOut(message: error.localizedDescription)
+            if let cached = cachedUser() {
+                isOfflineSession = true
+                state = .signedIn(cached)
+            } else {
+                state = .signedOut(message: error.localizedDescription)
+            }
         }
     }
 
@@ -74,6 +97,8 @@ final class Session: ObservableObject {
         serverURL = raw
 
         apply(tokens: RefreshResponse(token: auth.token, refreshToken: auth.refreshToken))
+        cache(user: auth.user)
+        isOfflineSession = false
         state = .signedIn(auth.user)
     }
 
@@ -84,13 +109,15 @@ final class Session: ObservableObject {
         await client?.logout(refreshToken: currentRefresh, token: currentToken)
 
         clearSession()
+        removeCachedUser()
+        isOfflineSession = false
         state = .signedOut(message: nil)
     }
 
     /// Executa uma chamada autenticada; em 401 renova a sessão e tenta de novo **uma vez**.
     func authorized<T>(_ operation: (APIClient, String) async throws -> T) async throws -> T {
         guard let client, let token = accessToken else {
-            throw APIError.http(401, "Sessão não iniciada")
+            throw APIError.http(401, isOfflineSession ? "Sem conexão" : "Sessão não iniciada")
         }
 
         do {
@@ -110,6 +137,12 @@ final class Session: ObservableObject {
 
         let refreshed = try await client.refresh(refreshToken: refresh)
         apply(tokens: refreshed)
+        isOfflineSession = false
+
+        if let token = accessToken {
+            return token
+        }
+
         return refreshed.token
     }
 
@@ -123,5 +156,21 @@ final class Session: ObservableObject {
         accessToken = nil
         refreshToken = nil
         Keychain.remove(Self.refreshAccount)
+    }
+
+    // MARK: - Perfil em cache (sessão offline)
+
+    private func cache(user: PublicUser) {
+        guard let data = try? JSONEncoder().encode(user) else { return }
+        UserDefaults.standard.set(data, forKey: Self.cachedUserKey)
+    }
+
+    private func cachedUser() -> PublicUser? {
+        guard let data = UserDefaults.standard.data(forKey: Self.cachedUserKey) else { return nil }
+        return try? JSONDecoder().decode(PublicUser.self, from: data)
+    }
+
+    private func removeCachedUser() {
+        UserDefaults.standard.removeObject(forKey: Self.cachedUserKey)
     }
 }

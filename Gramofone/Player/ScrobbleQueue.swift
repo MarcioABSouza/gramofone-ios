@@ -20,6 +20,7 @@ final class ScrobbleQueue: ObservableObject {
 
     private var session: Session?
     private var isFlushing = false
+    private var autoFlushTimer: Timer?
     private let fileURL: URL
 
     init() {
@@ -33,6 +34,18 @@ final class ScrobbleQueue: ObservableObject {
     }
 
     var count: Int { pending.count }
+
+    /// Rede móvel/LAN pode reconectar sem o iOS entregar o evento de caminho:
+    /// um tick de 60 s garante que a fila não fique presa.
+    func startAutoFlush() {
+        guard autoFlushTimer == nil else { return }
+
+        autoFlushTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                await self?.flush()
+            }
+        }
+    }
 
     /// Enfileira uma ouvida (idempotente por `playId`).
     func enqueue(

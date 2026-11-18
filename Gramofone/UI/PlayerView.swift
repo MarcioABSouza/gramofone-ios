@@ -50,7 +50,7 @@ struct PlayerView: View {
                             .padding(.top, 60)
                     }
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 16)
                 .padding(.bottom, 24)
             }
         }
@@ -77,6 +77,7 @@ struct PlayerView: View {
             Color.clear.frame(width: 44, height: 44)
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
     }
 
     private var progressBar: some View {
@@ -110,14 +111,15 @@ struct PlayerView: View {
     }
 
     private var controls: some View {
-        HStack(spacing: 26) {
+        // Larguras somadas cabem nos 320 pt do iPod (268 pt de 280 disponíveis).
+        HStack(spacing: 8) {
             Button {
                 player.cycleRepeat()
             } label: {
                 Image(systemName: player.repeatMode.symbol)
-                    .font(.system(size: 18))
+                    .font(.system(size: 16))
                     .foregroundColor(player.repeatMode.isActive ? .brand : .zinc500)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 40, height: 44)
             }
 
             Button {
@@ -144,9 +146,10 @@ struct PlayerView: View {
                     .frame(width: 52, height: 52)
             }
 
-            Color.clear.frame(width: 44, height: 44)
+            Color.clear.frame(width: 40, height: 40)
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
         .padding(.top, 4)
     }
 

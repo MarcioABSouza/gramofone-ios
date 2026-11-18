@@ -52,6 +52,10 @@ struct AlbumListSummary: Decodable, Identifiable, Equatable {
     let previewAlbums: [AlbumCoverPreview]
 }
 
+struct AlbumListsResponse: Decodable {
+    let data: [AlbumListSummary]
+}
+
 struct AlbumListDetail: Decodable {
     struct Info: Decodable, Equatable {
         let id: String

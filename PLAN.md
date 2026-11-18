@@ -221,7 +221,8 @@ A fase 0 é a que valida a premissa inteira (CI → IPA → TrollStore → rede)
 | 18/11/2026 | 1 | login + sessão persistida (refresh token no Keychain, rotação + retry em 401) validados no iPod |
 | 18/11/2026 | 2 | biblioteca (grade, busca, paginação) + detalhe do álbum — validada no iPod |
 | 18/11/2026 | 3–6 | player (fila, background, lock screen), download/offline, fila de scrobble e acabamento — validados no iPod (0.4.0) |
-| 18/11/2026 | 7 | listas de álbuns e músicas (tocar/aleatório), ordenação da biblioteca, aba Baixados com “Tocar tudo” e “Adicionar à fila” — 0.5.0, aguardando teste |
+| 18/11/2026 | 7 | listas de álbuns e músicas (tocar/aleatório), ordenação da biblioteca, aba Baixados com “Tocar tudo” e “Adicionar à fila” — 0.5.0 validada |
+| 18/11/2026 | 7.1 | correções: `/lists` com envelope `data`, controles do player em 320 pt, ícone full-bleed `#dc2626`, **sessão offline** (abre sem rede com o perfil em cache) e flush de scrobble com timer + botão manual — 0.5.1 |
 
 Notas de campo: `macos-14` foi aposentado em 02/11/2026 (o workflow usa `macos-15`); o
 `pymobiledevice3` atual quebrou o `TrollRestore` (API `Command` removida) — a instalação usou a

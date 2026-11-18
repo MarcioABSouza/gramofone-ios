@@ -123,6 +123,14 @@ struct LibraryView: View {
             }
             .task {
                 reloadOffline()
+
+                // Sem rede a única aba útil é a de baixados.
+                if !network.isOnline {
+                    tab = .downloads
+                    isLoading = false
+                    return
+                }
+
                 if albums.isEmpty { await reload() }
             }
             .onChange(of: downloads.downloaded) { _ in
@@ -181,14 +189,24 @@ struct LibraryView: View {
                 .padding(.top, 60)
         } else if let error {
             VStack(spacing: 12) {
-                Image(systemName: "exclamationmark.triangle")
+                Image(systemName: network.isOnline ? "exclamationmark.triangle" : "wifi.slash")
                     .font(.largeTitle)
                     .foregroundColor(.orange)
-                Text(error)
+
+                Text(network.isOnline ? error : "Sem conexão. Os álbuns baixados continuam disponíveis.")
                     .multilineTextAlignment(.center)
                     .foregroundColor(.zinc400)
-                Button("Tentar novamente") {
-                    Task { await reload() }
+
+                if network.isOnline {
+                    Button("Tentar novamente") {
+                        Task { await reload() }
+                    }
+                } else {
+                    Button("Ir para Baixados") {
+                        tab = .downloads
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.brand)
                 }
             }
             .padding(32)

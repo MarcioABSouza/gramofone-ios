@@ -113,9 +113,10 @@ final class APIClient {
 
     // MARK: - Listas
 
-    /// `GET /lists` devolve um **array puro** (sem envelope `data`).
+    /// `GET /lists` devolve `{ data: [...] }` (o controller envelopa).
     func albumLists(token: String) async throws -> [AlbumListSummary] {
-        try await get("lists", token: token)
+        let response: AlbumListsResponse = try await get("lists", token: token)
+        return response.data
     }
 
     func albumList(id: String, token: String) async throws -> AlbumListDetail {

@@ -25,10 +25,19 @@ struct RootView: View {
             downloads.configure(session: session)
             await session.restoreOnce()
             player.configure(session: session, scrobbles: scrobbles, network: network)
+            scrobbles.startAutoFlush()
             await scrobbles.flush()
         }
         .onChange(of: network.isOnline) { online in
-            if online {
+            guard online else { return }
+            Task {
+                // Sessão que abriu offline volta a ser validada; depois a fila anda.
+                await session.revalidate()
+                await scrobbles.flush()
+            }
+        }
+        .onChange(of: session.state) { state in
+            if case .signedIn = state {
                 Task { await scrobbles.flush() }
             }
         }

@@ -20,7 +20,8 @@ O plano completo (arquitetura, contrato da API, fases e riscos) está em [PLAN.m
 | 4 — download + offline | ✅ validada no iPod (18/11/2026) |
 | 5 — fila de scrobble | 🚧 implementada, aguardando teste |
 | 6 — acabamento | ✅ validada no iPod (18/11/2026) |
-| 7 — listas, ordenação e baixados | 🚧 implementada, aguardando teste |
+| 7 — listas, ordenação e baixados | ✅ validada no iPod (18/11/2026) |
+| 7.1 — correções (listas, player 320 pt, ícone, sessão offline, flush) | 🚧 em teste |
 
 O app abre na **Biblioteca** (álbuns com cópia no servidor, busca, paginação, ordenação e aba
 **Baixados** com “Tocar tudo”). Tocar num álbum abre as faixas; tocar numa faixa inicia o player

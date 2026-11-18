@@ -9,6 +9,7 @@ struct AccountView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var isSigningOut = false
+    @State private var isFlushing = false
     @State private var confirmRemoveAll = false
 
     var body: some View {
@@ -26,6 +27,21 @@ struct AccountView: View {
                         row("Conta", user.lastfmUsername ?? "não conectada")
                         row("Scrobble", user.lastfmConfigured ? "configurado" : "não configurado")
                         row("Na fila", "\(scrobbles.count) pendente(s)")
+
+                        Button {
+                            Task {
+                                isFlushing = true
+                                await scrobbles.flush()
+                                isFlushing = false
+                            }
+                        } label: {
+                            HStack {
+                                Text("Enviar scrobbles agora")
+                                Spacer()
+                                if isFlushing { ProgressView() }
+                            }
+                        }
+                        .disabled(isFlushing || scrobbles.count == 0)
                     }
                 }
 
@@ -59,7 +75,7 @@ struct AccountView: View {
                 }
 
                 Section {
-                    Text("Gramofone iOS 0.4.0 — fases 3–6")
+                    Text("Gramofone iOS 0.5.1")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
