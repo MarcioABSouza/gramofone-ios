@@ -10,10 +10,11 @@ struct AlbumView: View {
     @State private var detail: AlbumDetail?
     @State private var error: String?
     @State private var isLoading = true
+    @State private var notice: String?
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 18) {
                 header
 
                 if isLoading {
@@ -33,6 +34,12 @@ struct AlbumView: View {
                     .padding(.top, 24)
                 } else if let detail {
                     actions(detail)
+
+                    if let notice {
+                        Text(notice)
+                            .font(.footnote)
+                            .foregroundColor(.green)
+                    }
 
                     if !detail.isLocal {
                         Label(
@@ -92,26 +99,45 @@ struct AlbumView: View {
         }
     }
 
-    // MARK: - Ações (tocar / baixar)
+    // MARK: - Ações
 
     @ViewBuilder
     private func actions(_ detail: AlbumDetail) -> some View {
         let albumId = detail.album.id
-        let playable = detail.tracks.filter { $0.filePath != nil }
+        let playable = playableItems(detail)
         let progress = downloads.progress[albumId]
-        let isDownloaded = downloads.downloaded.contains(albumId)
+        let isDownloaded = downloads.downloaded.contains(albumId) || OfflineStore.isDownloaded(albumId)
 
         VStack(spacing: 10) {
             if !playable.isEmpty {
-                Button {
-                    play(detail: detail, startingAt: 0)
-                } label: {
-                    Label("Tocar (\(playable.count))", systemImage: "play.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
+                HStack(spacing: 10) {
+                    Button {
+                        player.play(queue: playable, startingAt: 0)
+                    } label: {
+                        Label("Tocar", systemImage: "play.fill")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.brand)
+
+                    Button {
+                        player.playShuffled(playable)
+                    } label: {
+                        Label("Aleatório", systemImage: "shuffle")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.brand)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.brand)
+
+                Button {
+                    addToQueue(playable)
+                } label: {
+                    Label("Adicionar à fila", systemImage: "text.badge.plus")
+                        .font(.footnote)
+                }
             }
 
             if let progress {
@@ -136,6 +162,7 @@ struct AlbumView: View {
                     Spacer()
                     Button("Remover download", role: .destructive) {
                         downloads.remove(albumId: albumId)
+                        notice = nil
                     }
                     .font(.footnote)
                 }
@@ -161,13 +188,9 @@ struct AlbumView: View {
                     isCurrent: player.currentItem?.trackId == track.id,
                     isPlaying: player.currentItem?.trackId == track.id && player.isPlaying,
                     onTap: {
-                        guard let position = detail.tracks
-                            .filter({ $0.filePath != nil })
-                            .firstIndex(where: { $0.id == track.id })
-                        else {
-                            return
-                        }
-                        play(detail: detail, startingAt: position)
+                        let items = playableItems(detail)
+                        guard let start = items.firstIndex(where: { $0.trackId == track.id }) else { return }
+                        player.play(queue: items, startingAt: start)
                     }
                 )
 
@@ -176,6 +199,12 @@ struct AlbumView: View {
                 }
             }
         }
+    }
+
+    private func playableItems(_ detail: AlbumDetail) -> [QueueItem] {
+        detail.tracks
+            .filter { $0.filePath != nil }
+            .map { QueueItem(track: $0, album: detail.album) }
     }
 
     private var trackCountText: String {
@@ -189,18 +218,27 @@ struct AlbumView: View {
         return client.coverURL(albumId: album.id)
     }
 
-    private func play(detail: AlbumDetail, startingAt start: Int) {
-        let items = detail.tracks
-            .filter { $0.filePath != nil }
-            .map { QueueItem(track: $0, album: detail.album) }
+    private func addToQueue(_ items: [QueueItem]) {
+        let added = player.append(items)
 
-        guard !items.isEmpty else { return }
-        player.play(queue: items, startingAt: min(start, items.count - 1))
+        notice = added > 0 ? "\(added) faixa(s) adicionadas à fila" : "Essas faixas já estão na fila"
+
+        Task {
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            if notice != nil { notice = nil }
+        }
     }
 
     private func load() async {
         isLoading = true
         error = nil
+
+        // Baixado: monta o detalhe do manifesto (funciona sem rede).
+        if let offline = OfflineStore.load(album.id) {
+            detail = offline.asDetail
+            isLoading = false
+            return
+        }
 
         do {
             detail = try await session.authorized { client, token in

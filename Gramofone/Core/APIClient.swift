@@ -83,11 +83,18 @@ final class APIClient {
     // MARK: - Biblioteca
 
     /// Álbuns com cópia no servidor (`local=true`), ordenados por título.
-    func albums(token: String, skip: Int, take: Int, search: String) async throws -> AlbumPage {
+    func albums(
+        token: String,
+        skip: Int,
+        take: Int,
+        search: String,
+        sort: String = "title",
+        order: String = "asc"
+    ) async throws -> AlbumPage {
         var query: [URLQueryItem] = [
             URLQueryItem(name: "local", value: "true"),
-            URLQueryItem(name: "sort", value: "title"),
-            URLQueryItem(name: "order", value: "asc"),
+            URLQueryItem(name: "sort", value: sort),
+            URLQueryItem(name: "order", value: order),
             URLQueryItem(name: "skip", value: String(skip)),
             URLQueryItem(name: "take", value: String(take)),
         ]
@@ -102,6 +109,58 @@ final class APIClient {
 
     func album(id: String, token: String) async throws -> AlbumDetail {
         try await get("albums/" + id, token: token)
+    }
+
+    // MARK: - Listas
+
+    /// `GET /lists` devolve um **array puro** (sem envelope `data`).
+    func albumLists(token: String) async throws -> [AlbumListSummary] {
+        try await get("lists", token: token)
+    }
+
+    func albumList(id: String, token: String) async throws -> AlbumListDetail {
+        try await get("lists/" + id, token: token)
+    }
+
+    func songLists(token: String) async throws -> [SongListSummary] {
+        let response: SongListsResponse = try await get("song-lists", token: token)
+        return response.data
+    }
+
+    func songList(id: String, token: String) async throws -> SongListDetail {
+        try await get("song-lists/" + id, token: token)
+    }
+
+    /// Fila tocável de uma lista (só faixas com cópia no servidor).
+    func listTracks(kind: String, id: String, token: String) async throws -> [QueueTrack] {
+        let response: QueueTracksResponse = try await get("home/lists/\(kind)/\(id)/tracks", token: token)
+        return response.data
+    }
+
+    func randomTracks(limit: Int, token: String) async throws -> [QueueTrack] {
+        let response: QueueTracksResponse = try await get(
+            "home/random",
+            query: [URLQueryItem(name: "limit", value: String(limit))],
+            token: token
+        )
+        return response.data
+    }
+
+    /// Todas as faixas locais dos álbuns filtrados (teto de 1000 no backend).
+    func libraryTracks(search: String, sort: String, order: String, token: String) async throws -> [QueueTrack] {
+        var query: [URLQueryItem] = [
+            URLQueryItem(name: "local", value: "true"),
+            URLQueryItem(name: "sort", value: sort),
+            URLQueryItem(name: "order", value: order),
+        ]
+
+        let term = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !term.isEmpty {
+            query.append(URLQueryItem(name: "search", value: term))
+        }
+
+        let response: QueueTracksResponse = try await get("library/tracks", query: query, token: token)
+        return response.data
     }
 
     func logout(refreshToken: String?, token: String?) async {

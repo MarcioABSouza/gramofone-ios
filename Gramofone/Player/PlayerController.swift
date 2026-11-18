@@ -113,6 +113,32 @@ final class PlayerController: ObservableObject {
         saveSnapshot()
     }
 
+    /// Acrescenta faixas ao fim da fila (sem duplicar). Fila vazia → começa a tocar.
+    /// Devolve quantas entraram de fato.
+    @discardableResult
+    func append(_ items: [QueueItem]) -> Int {
+        guard !items.isEmpty else { return 0 }
+
+        if queue.isEmpty {
+            play(queue: items, startingAt: 0)
+            return items.count
+        }
+
+        let existing = Set(queue.map(\.trackId))
+        let newItems = items.filter { !existing.contains($0.trackId) }
+        guard !newItems.isEmpty else { return 0 }
+
+        queue.append(contentsOf: newItems)
+        saveSnapshot()
+        return newItems.count
+    }
+
+    /// Toca o conjunto embaralhado (as faixas da lista, não a ordem dos álbuns).
+    func playShuffled(_ items: [QueueItem]) {
+        guard !items.isEmpty else { return }
+        play(queue: items.shuffled(), startingAt: 0)
+    }
+
     func resume() {
         guard currentItem != nil else { return }
         activateAudioSession()

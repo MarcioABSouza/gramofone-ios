@@ -16,14 +16,16 @@ O plano completo (arquitetura, contrato da API, fases e riscos) está em [PLAN.m
 | 0 — app mínimo + `GET /api/health` | ✅ validada no iPod (18/11/2026) |
 | 1 — login + sessão no Keychain (refresh rotativo) | ✅ validada no iPod (18/11/2026) |
 | 2 — biblioteca + detalhe do álbum | ✅ validada no iPod (18/11/2026) |
-| 3 — player + tela bloqueada | 🚧 implementada, aguardando teste |
-| 4 — download + offline | 🚧 implementada, aguardando teste |
+| 3 — player + tela bloqueada | ✅ validada no iPod (18/11/2026) |
+| 4 — download + offline | ✅ validada no iPod (18/11/2026) |
 | 5 — fila de scrobble | 🚧 implementada, aguardando teste |
-| 6 — acabamento | 🚧 implementada, aguardando teste |
+| 6 — acabamento | ✅ validada no iPod (18/11/2026) |
+| 7 — listas, ordenação e baixados | 🚧 implementada, aguardando teste |
 
-O app abre na **Biblioteca** (álbuns com cópia no servidor, busca e paginação). Tocar num álbum
-abre as faixas; tocar numa faixa inicia o player (barra fixa no rodapé → tela cheia). O álbum tem
-**Baixar para offline** e, no player, **repeat**, fila e scrobble automático.
+O app abre na **Biblioteca** (álbuns com cópia no servidor, busca, paginação, ordenação e aba
+**Baixados** com “Tocar tudo”). Tocar num álbum abre as faixas; tocar numa faixa inicia o player
+(barra fixa no rodapé → tela cheia). O álbum tem **Tocar · Aleatório · Adicionar à fila · Baixar**.
+O menu `⋯` ordena a biblioteca; o `≡` abre as **Listas** (álbuns e músicas, com tocar e aleatório).
 
 ## Como o build sai daqui
 
@@ -60,8 +62,8 @@ Gramofone/
   Models/     Auth, Library
   Player/     PlayerController, QueueItem, ScrobbleQueue
   Offline/    DownloadManager
-  UI/         LoginView, LibraryView, AlbumView, PlayerView, MiniPlayer, MainView,
-              AccountView, CoverImage, Theme
+  UI/         LoginView, LibraryView, AlbumView, AlbumCell, ListsView, AlbumListPage,
+              SongListPage, PlayerView, MiniPlayer, MainView, AccountView, CoverImage, Theme
   Resources/  Assets.xcassets (ícone reaproveitado do frontend)
 .github/workflows/ios.yml        # build + artefato
 ```
