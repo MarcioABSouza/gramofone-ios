@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct LibraryView: View {
-    @ObservedObject var session: Session
-    let user: PublicUser
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var network: NetworkMonitor
 
     @State private var albums: [Album] = []
     @State private var total = 0
@@ -22,6 +22,10 @@ struct LibraryView: View {
     var body: some View {
         NavigationView {
             ScrollView {
+                if !network.isOnline {
+                    offlineBanner
+                }
+
                 if isLoading {
                     ProgressView("Carregando biblioteca…")
                         .padding(.top, 60)
@@ -53,9 +57,9 @@ struct LibraryView: View {
                             // Forma "eager" do NavigationLink: a versão com closure
                             // de destino só existe a partir do iOS 16.
                             NavigationLink(
-                                destination: AlbumView(session: session, album: album),
+                                destination: AlbumView(album: album),
                                 label: {
-                                    AlbumCell(album: album, session: session)
+                                    AlbumCell(album: album)
                                 }
                             )
                             .buttonStyle(.plain)
@@ -102,13 +106,26 @@ struct LibraryView: View {
                 }
             }
             .sheet(isPresented: $showAccount) {
-                AccountView(session: session, user: user)
+                AccountView()
             }
             .task {
                 if albums.isEmpty { await reload() }
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
+    }
+
+    private var offlineBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "wifi.slash")
+            Text("Sem conexão — só o que está baixado toca.")
+            Spacer(minLength: 0)
+        }
+        .font(.footnote)
+        .foregroundColor(.orange)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color.orange.opacity(0.12))
     }
 
     private func reload() async {
@@ -150,7 +167,8 @@ struct LibraryView: View {
 
 private struct AlbumCell: View {
     let album: Album
-    let session: Session
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var downloads: DownloadManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -161,6 +179,14 @@ private struct AlbumCell: View {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.caption)
                             .foregroundColor(.green)
+                            .padding(6)
+                    }
+                }
+                .overlay(alignment: .bottomLeading) {
+                    if downloads.downloaded.contains(album.id) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.brand)
                             .padding(6)
                     }
                 }
@@ -186,8 +212,8 @@ private struct AlbumCell: View {
     }
 
     private var coverURL: URL? {
-        guard album.hasCachedCover else { return nil }
-        guard let client = session.client else { return nil }
+        if let file = OfflineStore.coverFile(album.id) { return file }
+        guard album.hasCachedCover, let client = session.client else { return nil }
         return client.coverURL(albumId: album.id)
     }
 }

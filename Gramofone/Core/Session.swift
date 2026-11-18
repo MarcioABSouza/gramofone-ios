@@ -16,6 +16,11 @@ final class Session: ObservableObject {
     @Published private(set) var state: State = .loading
     @Published private(set) var serverURL: String = Settings.serverURL
 
+    var currentUser: PublicUser? {
+        if case .signedIn(let user) = state { return user }
+        return nil
+    }
+
     private(set) var client: APIClient?
     private(set) var accessToken: String?
     private var refreshToken: String?

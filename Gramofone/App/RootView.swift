@@ -1,7 +1,11 @@
 import SwiftUI
 
 struct RootView: View {
-    @StateObject private var session = Session()
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var player: PlayerController
+    @EnvironmentObject private var downloads: DownloadManager
+    @EnvironmentObject private var scrobbles: ScrobbleQueue
+    @EnvironmentObject private var network: NetworkMonitor
 
     var body: some View {
         Group {
@@ -9,18 +13,24 @@ struct RootView: View {
             case .loading:
                 ProgressView("Abrindo…")
             case .signedOut(let message):
-                LoginView(session: session, initialMessage: message)
-            case .signedIn(let user):
-                LibraryView(session: session, user: user)
+                LoginView(initialMessage: message)
+            case .signedIn:
+                MainView()
             }
         }
-        .task { await session.restoreOnce() }
-    }
-}
-
-struct RootView_Previews: PreviewProvider {
-    static var previews: some View {
-        RootView()
-            .preferredColorScheme(.dark)
+        .task {
+            // A sessão vem primeiro: o player precisa do client para montar as
+            // URLs de streaming ao restaurar a fila.
+            scrobbles.configure(session: session)
+            downloads.configure(session: session)
+            await session.restoreOnce()
+            player.configure(session: session, scrobbles: scrobbles, network: network)
+            await scrobbles.flush()
+        }
+        .onChange(of: network.isOnline) { online in
+            if online {
+                Task { await scrobbles.flush() }
+            }
+        }
     }
 }

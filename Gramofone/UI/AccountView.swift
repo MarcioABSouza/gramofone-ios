@@ -2,31 +2,49 @@ import SwiftUI
 
 /// Conta e sessão (folha aberta pelo botão de perfil na Biblioteca).
 struct AccountView: View {
-    @ObservedObject var session: Session
-    let user: PublicUser
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var player: PlayerController
+    @EnvironmentObject private var downloads: DownloadManager
+    @EnvironmentObject private var scrobbles: ScrobbleQueue
 
     @Environment(\.dismiss) private var dismiss
     @State private var isSigningOut = false
+    @State private var confirmRemoveAll = false
 
     var body: some View {
         NavigationView {
             List {
-                Section("Sessão") {
-                    row("Usuário", user.name ?? user.email)
-                    row("E-mail", user.email)
-                    row("Papel", user.role == "manager" ? "manager (admin)" : "viewer")
-                    row("Servidor", session.serverURL)
+                if let user = session.currentUser {
+                    Section("Sessão") {
+                        row("Usuário", user.name ?? user.email)
+                        row("E-mail", user.email)
+                        row("Papel", user.role == "manager" ? "manager (admin)" : "viewer")
+                        row("Servidor", session.serverURL)
+                    }
+
+                    Section("Last.fm") {
+                        row("Conta", user.lastfmUsername ?? "não conectada")
+                        row("Scrobble", user.lastfmConfigured ? "configurado" : "não configurado")
+                        row("Na fila", "\(scrobbles.count) pendente(s)")
+                    }
                 }
 
-                Section("Last.fm") {
-                    row("Conta", user.lastfmUsername ?? "não conectada")
-                    row("Scrobble", user.lastfmConfigured ? "configurado" : "não configurado")
+                Section("Offline") {
+                    row("Álbuns baixados", "\(downloads.downloaded.count)")
+                    row("Espaço usado", downloads.totalBytesLabel)
+
+                    if !downloads.downloaded.isEmpty {
+                        Button("Remover todos os downloads", role: .destructive) {
+                            confirmRemoveAll = true
+                        }
+                    }
                 }
 
                 Section {
                     Button(role: .destructive) {
                         Task {
                             isSigningOut = true
+                            player.stop()
                             await session.logout()
                             isSigningOut = false
                         }
@@ -41,7 +59,7 @@ struct AccountView: View {
                 }
 
                 Section {
-                    Text("Gramofone iOS 0.3.0 — fase 2")
+                    Text("Gramofone iOS 0.4.0 — fases 3–6")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
@@ -52,6 +70,16 @@ struct AccountView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Fechar") { dismiss() }
                 }
+            }
+            .confirmationDialog(
+                "Remover todos os downloads?",
+                isPresented: $confirmRemoveAll,
+                titleVisibility: .visible
+            ) {
+                Button("Remover tudo", role: .destructive) {
+                    downloads.removeAll()
+                }
+                Button("Cancelar", role: .cancel) {}
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())

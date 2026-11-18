@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LoginView: View {
-    @ObservedObject var session: Session
+    @EnvironmentObject private var session: Session
     let initialMessage: String?
 
     @State private var serverURL: String = Settings.serverURL
@@ -79,7 +79,7 @@ struct LoginView: View {
                 }
 
                 Section {
-                    Text("Gramofone iOS 0.2.0 — fase 1")
+                    Text("Gramofone iOS 0.4.0")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }

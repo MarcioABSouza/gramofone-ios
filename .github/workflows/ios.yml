@@ -46,7 +46,17 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             PROVISIONING_PROFILE_SPECIFIER="" \
-            build
+            build 2>&1 | tee build.log
+
+      - name: Resumo do build (só em falha)
+        if: failure()
+        run: |
+          {
+            echo "### xcodebuild (últimas 120 linhas)"
+            echo '```'
+            tail -120 build.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Conferir alvo mínimo
         run: |

@@ -112,6 +112,56 @@ final class APIClient {
         _ = try? await post("auth/logout", body: body, token: token, decode: Empty.self)
     }
 
+    // MARK: - Reprodução e Last.fm
+
+    struct PlayBody: Encodable {
+        let trackId: String?
+        let songId: String?
+        let albumId: String?
+        let title: String
+        let artist: String?
+        let albumTitle: String?
+        let duration: Double?
+    }
+
+    struct NowPlayingBody: Encodable {
+        let title: String
+        let artist: String?
+        let album: String?
+        /// Segundos inteiros (o backend valida com Zod int).
+        let duration: Int
+    }
+
+    struct ScrobbleBody: Encodable {
+        let title: String
+        let artist: String?
+        let album: String?
+        let duration: Int
+        let playId: String
+        /// Início da ouvida em unix segundos.
+        let startedAt: Int
+    }
+
+    struct ScrobbleResult: Decodable {
+        let queued: Bool
+        let reason: String?
+    }
+
+    /// Histórico do player (`POST /plays`) — best-effort, nunca bloqueia o áudio.
+    func recordPlay(token: String, body: PlayBody) async {
+        struct Result: Decodable { let id: String? }
+        _ = try? await post("plays", body: body, token: token, decode: Result.self)
+    }
+
+    func nowPlaying(token: String, body: NowPlayingBody) async {
+        struct Result: Decodable { let sent: Bool? }
+        _ = try? await post("lastfm/scrobble/now-playing", body: body, token: token, decode: Result.self)
+    }
+
+    func scrobble(token: String, body: ScrobbleBody) async throws -> ScrobbleResult {
+        try await post("lastfm/scrobble", body: body, token: token)
+    }
+
     // MARK: - URLs auxiliares
 
     /// URL absoluta de um arquivo da biblioteca (`/api/media/<filePath>`).

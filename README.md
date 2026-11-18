@@ -15,14 +15,15 @@ O plano completo (arquitetura, contrato da API, fases e riscos) está em [PLAN.m
 |---|---|
 | 0 — app mínimo + `GET /api/health` | ✅ validada no iPod (18/11/2026) |
 | 1 — login + sessão no Keychain (refresh rotativo) | ✅ validada no iPod (18/11/2026) |
-| 2 — biblioteca + detalhe do álbum | 🚧 implementada, aguardando teste no aparelho |
-| 3 — player + tela bloqueada | pendente |
-| 4 — download + offline | pendente |
-| 5 — fila de scrobble | pendente |
-| 6 — acabamento | pendente |
+| 2 — biblioteca + detalhe do álbum | ✅ validada no iPod (18/11/2026) |
+| 3 — player + tela bloqueada | 🚧 implementada, aguardando teste |
+| 4 — download + offline | 🚧 implementada, aguardando teste |
+| 5 — fila de scrobble | 🚧 implementada, aguardando teste |
+| 6 — acabamento | 🚧 implementada, aguardando teste |
 
-O app abre na **Biblioteca** (álbuns com cópia no servidor, busca e paginação); tocar num álbum
-abre as faixas; o botão de perfil mostra a conta e permite sair.
+O app abre na **Biblioteca** (álbuns com cópia no servidor, busca e paginação). Tocar num álbum
+abre as faixas; tocar numa faixa inicia o player (barra fixa no rodapé → tela cheia). O álbum tem
+**Baixar para offline** e, no player, **repeat**, fila e scrobble automático.
 
 ## Como o build sai daqui
 
@@ -55,9 +56,12 @@ baixar o `.ipa` no aparelho → TrollStore → *Install IPA*.
 project.yml                      # XcodeGen (fonte da verdade)
 Gramofone/
   App/        GramofoneApp, RootView, Info.plist
-  Core/       APIClient, Session, Keychain, Settings
+  Core/       APIClient, Session, Keychain, Settings, OfflineStore, NetworkMonitor
   Models/     Auth, Library
-  UI/         LoginView, LibraryView, AlbumView, AccountView, CoverImage, Theme
+  Player/     PlayerController, QueueItem, ScrobbleQueue
+  Offline/    DownloadManager
+  UI/         LoginView, LibraryView, AlbumView, PlayerView, MiniPlayer, MainView,
+              AccountView, CoverImage, Theme
   Resources/  Assets.xcassets (ícone reaproveitado do frontend)
 .github/workflows/ios.yml        # build + artefato
 ```
