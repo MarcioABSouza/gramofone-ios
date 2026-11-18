@@ -56,7 +56,8 @@ struct Track: Decodable, Identifiable, Equatable {
     let number: Int?
     let title: String
     let artist: String?
-    let duration: Int?
+    /// Segundos — o backend manda fracionário (ex.: 252.384).
+    let duration: Double?
     let filePath: String?
     let songId: String?
     let hasLyrics: Bool
@@ -66,7 +67,8 @@ struct Track: Decodable, Identifiable, Equatable {
 
     var durationLabel: String? {
         guard let duration, duration > 0 else { return nil }
-        return String(format: "%d:%02d", duration / 60, duration % 60)
+        let total = Int(duration.rounded())
+        return String(format: "%d:%02d", total / 60, total % 60)
     }
 }
 

@@ -209,6 +209,8 @@ final class APIClient {
 
             do {
                 return try JSONDecoder().decode(T.self, from: data)
+            } catch let error as DecodingError {
+                throw APIError.transport("resposta inesperada (\(Self.describe(error)))")
             } catch {
                 throw APIError.transport("não entendi a resposta do servidor")
             }
@@ -238,6 +240,26 @@ final class APIClient {
         guard let text = String(data: data, encoding: .utf8) else { return nil }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : String(trimmed.prefix(160))
+    }
+
+    private static func describe(_ error: DecodingError) -> String {
+        func path(_ context: DecodingError.Context) -> String {
+            let parts = context.codingPath.map(\.stringValue)
+            return parts.isEmpty ? "raiz" : parts.joined(separator: ".")
+        }
+
+        switch error {
+        case .keyNotFound(let key, let context):
+            return "campo ausente: \(path(context)).\(key.stringValue)"
+        case .typeMismatch(let type, let context):
+            return "tipo inesperado em \(path(context)): \(type)"
+        case .valueNotFound(let type, let context):
+            return "valor nulo em \(path(context)): \(type)"
+        case .dataCorrupted(let context):
+            return "dados inválidos em \(path(context))"
+        @unknown default:
+            return "resposta inválida"
+        }
     }
 
     private struct ErrorPayload: Decodable {
