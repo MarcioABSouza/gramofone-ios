@@ -26,6 +26,16 @@ abre as faixas; o botão de perfil mostra a conta e permite sair.
 
 ## Como o build sai daqui
 
+Duas rotas, mesmo comando de build (`xcodegen` + `xcodebuild` sem assinatura):
+
+1. **Codemagic** (`codemagic.yaml`) — sem fila, grátis até 500 min/mês. No painel do app, em
+   *Build configuration*, selecione **codemagic.yaml** (o fluxo automático não serve porque o
+   projeto é gerado). O `.ipa` sai em *Artifacts*. Se o erro citar "deployment target 15.0 is not
+   supported", fixe `environment.xcode: 16.4` no yaml.
+2. **GitHub Actions** (`.github/workflows/ios.yml`) — grátis em repo público, mas o runner macOS é
+   melhor-esforço: já vimos job ficar 15 min na fila e ser cancelado sem nunca ganhar runner.
+
+
 O `.xcodeproj` **não é versionado**: `project.yml` (XcodeGen) é a fonte da verdade e o CI gera o
 projeto. A cada push em `main` (ou `workflow_dispatch`), o workflow:
 

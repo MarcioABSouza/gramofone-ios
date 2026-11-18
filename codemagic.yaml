@@ -1,0 +1,76 @@
+# Codemagic — build do cliente iOS sem assinatura (para instalar via TrollStore).
+#
+# O projeto Xcode é gerado pelo XcodeGen a partir de project.yml, então usamos
+# um workflow próprio em vez do fluxo automático do Codemagic.
+#
+# Se o Xcode do runner não suportar deployment target iOS 15 (aparece erro
+# "deployment target 15.0 is not supported"), fixe uma versão antiga:
+#   environment:
+#     xcode: 16.4
+
+workflows:
+  ios-unsigned:
+    name: Gramofone iOS (IPA sem assinatura)
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+
+    environment:
+      xcode: latest
+      vars:
+        SCHEME: Gramofone
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+
+    scripts:
+      - name: Versão do Xcode
+        script: xcodebuild -version
+
+      - name: Instalar XcodeGen
+        script: |
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Gerar o projeto
+        script: xcodegen generate
+
+      - name: Build (Release, device, sem assinatura)
+        script: |
+          set -o pipefail
+          xcodebuild \
+            -project Gramofone.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            build
+
+      - name: Conferir alvo mínimo
+        script: |
+          APP="build/Build/Products/Release-iphoneos/Gramofone.app"
+          /usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Info.plist"
+
+      - name: Empacotar .ipa
+        script: |
+          APP="build/Build/Products/Release-iphoneos/Gramofone.app"
+          rm -rf Payload Gramofone.ipa
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry Gramofone.ipa Payload
+          ls -lh Gramofone.ipa
+
+    artifacts:
+      - Gramofone.ipa
