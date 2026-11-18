@@ -1,9 +1,9 @@
 # Gramofone iOS
 
-Cliente iOS do [Gramofone](https://github.com/) para **iPod touch 7 (iOS 15.8.8)**: toca a
+Cliente iOS do [Gramofone](https://github.com/MarcioABSouza/gramofone) para **iPod touch 7 (iOS 15.8.8)**: toca a
 biblioteca do servidor na LAN, baixa álbuns para offline e enfileira scrobbles para o Last.fm.
 
-- **Sem Mac e sem iPhone**: compila no CI (GitHub Actions `macos-14`), instala pelo **TrollStore**.
+- **Sem Mac e sem iPhone**: compila no CI (GitHub Actions `macos-15`), instala pelo **TrollStore**.
 - **Sem App Store**: o `.ipa` sai sem assinatura do workflow e é instalado no aparelho.
 - **Sem backend novo**: consome apenas endpoints que já existem no Gramofone.
 
@@ -11,11 +11,18 @@ O plano completo (arquitetura, contrato da API, fases e riscos) está em [PLAN.m
 
 ## Status
 
-**Fase 0 implementada** — app "hello" que testa a conexão com o servidor (`GET /api/health`),
-validando a cadeia CI → IPA → TrollStore → rede no aparelho.
+| Fase | Estado |
+|---|---|
+| 0 — app mínimo + `GET /api/health` | ✅ validada no iPod (18/11/2026) |
+| 1 — login + sessão no Keychain (refresh rotativo) | ✅ validada no iPod (18/11/2026) |
+| 2 — biblioteca + detalhe do álbum | 🚧 implementada, aguardando teste no aparelho |
+| 3 — player + tela bloqueada | pendente |
+| 4 — download + offline | pendente |
+| 5 — fila de scrobble | pendente |
+| 6 — acabamento | pendente |
 
-Tela única: campo com o endereço do servidor (padrão `http://192.168.0.100:8998`), botão
-**Testar conexão** e o resultado. O endereço fica salvo em `UserDefaults`.
+O app abre na **Biblioteca** (álbuns com cópia no servidor, busca e paginação); tocar num álbum
+abre as faixas; o botão de perfil mostra a conta e permite sair.
 
 ## Como o build sai daqui
 
@@ -38,7 +45,9 @@ baixar o `.ipa` no aparelho → TrollStore → *Install IPA*.
 project.yml                      # XcodeGen (fonte da verdade)
 Gramofone/
   App/        GramofoneApp, RootView, Info.plist
-  Core/       APIClient, Settings
+  Core/       APIClient, Session, Keychain, Settings
+  Models/     Auth, Library
+  UI/         LoginView, LibraryView, AlbumView, AccountView, CoverImage, Theme
   Resources/  Assets.xcassets (ícone reaproveitado do frontend)
 .github/workflows/ios.yml        # build + artefato
 ```

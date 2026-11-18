@@ -11,7 +11,7 @@ struct RootView: View {
             case .signedOut(let message):
                 LoginView(session: session, initialMessage: message)
             case .signedIn(let user):
-                HomeView(session: session, user: user)
+                LibraryView(session: session, user: user)
             }
         }
         .task { await session.restoreOnce() }

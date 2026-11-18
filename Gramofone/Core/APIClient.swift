@@ -80,6 +80,30 @@ final class APIClient {
         try await get("auth/me", token: token)
     }
 
+    // MARK: - Biblioteca
+
+    /// Álbuns com cópia no servidor (`local=true`), ordenados por título.
+    func albums(token: String, skip: Int, take: Int, search: String) async throws -> AlbumPage {
+        var query: [URLQueryItem] = [
+            URLQueryItem(name: "local", value: "true"),
+            URLQueryItem(name: "sort", value: "title"),
+            URLQueryItem(name: "order", value: "asc"),
+            URLQueryItem(name: "skip", value: String(skip)),
+            URLQueryItem(name: "take", value: String(take)),
+        ]
+
+        let term = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !term.isEmpty {
+            query.append(URLQueryItem(name: "search", value: term))
+        }
+
+        return try await get("albums", query: query, token: token)
+    }
+
+    func album(id: String, token: String) async throws -> AlbumDetail {
+        try await get("albums/" + id, token: token)
+    }
+
     func logout(refreshToken: String?, token: String?) async {
         struct Body: Encodable { let refreshToken: String }
         struct Empty: Decodable { let message: String? }
@@ -115,8 +139,12 @@ final class APIClient {
 
     // MARK: - Transporte
 
-    private func get<T: Decodable>(_ path: String, token: String? = nil) async throws -> T {
-        try await send(method: "GET", path: path, bodyData: nil, token: token)
+    private func get<T: Decodable>(
+        _ path: String,
+        query: [URLQueryItem] = [],
+        token: String? = nil
+    ) async throws -> T {
+        try await send(method: "GET", path: path, query: query, bodyData: nil, token: token)
     }
 
     private func post<B: Encodable, T: Decodable>(_ path: String, body: B, token: String? = nil) async throws -> T {
@@ -138,10 +166,24 @@ final class APIClient {
     private func send<T: Decodable>(
         method: String,
         path: String,
+        query: [URLQueryItem] = [],
         bodyData: Data?,
         token: String?
     ) async throws -> T {
-        var request = URLRequest(url: apiBase.appendingPathComponent(path))
+        var components = URLComponents(
+            url: apiBase.appendingPathComponent(path),
+            resolvingAgainstBaseURL: false
+        )
+
+        if !query.isEmpty {
+            components?.queryItems = query
+        }
+
+        guard let url = components?.url else {
+            throw APIError.transport("endereço inválido")
+        }
+
+        var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 

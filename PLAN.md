@@ -212,3 +212,15 @@ A fase 0 é a que valida a premissa inteira (CI → IPA → TrollStore → rede)
 - App Android (mesmos endpoints e formato de fila): `~/Code/projects/gramofone-bare`.
 - TrollStore: `opa334/TrollStore` · TrollRestore: `JJTech0130/TrollRestore`.
 - LineageOS/CI: GitHub Actions `macos-14` (Xcode 15/16).
+
+## Progresso
+
+| Data | Fase | Entrega |
+|---|---|---|
+| 18/11/2026 | 0 | CI `macos-15` gera `.ipa` sem assinatura; TrollStore instalado via TrollRestore; app chamou `/api/health` no iPod |
+| 18/11/2026 | 1 | login + sessão persistida (refresh token no Keychain, rotação + retry em 401) validados no iPod |
+| 18/11/2026 | 2 | biblioteca (grade, busca, paginação) + detalhe do álbum — implementada, aguardando teste no aparelho |
+
+Notas de campo: `macos-14` foi aposentado em 02/11/2026 (o workflow usa `macos-15`); o
+`pymobiledevice3` atual quebrou o `TrollRestore` (API `Command` removida) — a instalação usou a
+**4.9.6** num venv separado.

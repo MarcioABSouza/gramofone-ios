@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// Placeholder da fase 1: confirma a sessão e permite sair.
-/// A biblioteca e o player entram na fase 2/3.
-struct HomeView: View {
+/// Conta e sessão (folha aberta pelo botão de perfil na Biblioteca).
+struct AccountView: View {
     @ObservedObject var session: Session
     let user: PublicUser
 
+    @Environment(\.dismiss) private var dismiss
     @State private var isSigningOut = false
 
     var body: some View {
@@ -40,26 +40,28 @@ struct HomeView: View {
                     .disabled(isSigningOut)
                 }
 
-                Section("Próximas fases") {
-                    Label("Biblioteca e álbum", systemImage: "square.grid.2x2")
-                    Label("Player com tela bloqueada", systemImage: "play.circle")
-                    Label("Download para offline", systemImage: "arrow.down.circle")
-                    Label("Fila de scrobble offline", systemImage: "arrow.triangle.2.circlepath")
+                Section {
+                    Text("Gramofone iOS 0.3.0 — fase 2")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
                 }
-                .foregroundColor(.secondary)
             }
-            .navigationTitle("Gramofone")
+            .navigationTitle("Conta")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Fechar") { dismiss() }
+                }
+            }
         }
         .navigationViewStyle(StackNavigationViewStyle())
     }
 
     private func row(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(label)
-                .foregroundColor(.secondary)
+            Text(label).foregroundColor(.secondary)
             Spacer()
-            Text(value)
-                .multilineTextAlignment(.trailing)
+            Text(value).multilineTextAlignment(.trailing)
         }
     }
 }
