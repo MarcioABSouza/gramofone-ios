@@ -1,8 +1,8 @@
 name: iOS
 
+# Só manual: o runner macOS do GitHub é melhor-esforço (já cancelou job após
+# 15 min de fila). O build do dia a dia roda no Codemagic (codemagic.yaml).
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
