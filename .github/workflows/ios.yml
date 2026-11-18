@@ -11,9 +11,11 @@ on:
 jobs:
   build:
     name: Build IPA (sem assinatura)
-    # macos-14 foi aposentado em 02/11/2026; macos-15 é o runner estável atual
-    # com Xcode 16 (compila deployment target iOS 15).
-    runs-on: macos-15
+    # macos-14 foi aposentado em 02/11/2026. Usamos o pool **Intel** (x64):
+    # o arm64 é o que aparece com falta de capacidade ("job was not acquired by
+    # Runner... capacity constraints") e cancelou dois runs. O macos-15-intel
+    # tem Xcode 16 e suporta deployment target iOS 15.
+    runs-on: macos-15-intel
     timeout-minutes: 30
     permissions:
       # Necessário para criar/atualizar o release com o .ipa.
