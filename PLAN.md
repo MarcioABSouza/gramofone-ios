@@ -187,6 +187,12 @@ Store) e usa backup modificado (Find My reativável depois). Se o TrollStore fal
 | **5** | Scrobble + histórico | ouvir offline → religar Wi-Fi → scrobble no Last.fm com horário original |
 | **6** | Acabamento | capa em cache, fila persistente, indicador offline, ícone do app, README |
 
+**Todas as fases 0–6 foram concluídas e validadas no aparelho.** Depois delas entraram duas
+extensões pedidas em uso: a fase **7** (listas de álbuns/músicas, ordenação da biblioteca, aba
+Baixados com “Tocar tudo” e “Adicionar à fila”) e a **7.1** (correções de envelope de `/lists`,
+layout do player em 320 pt, ícone full-bleed, **sessão offline** e flush de scrobble com timer).
+O histórico completo está em [docs/CHANGELOG.md](docs/CHANGELOG.md).
+
 A fase 0 é a que valida a premissa inteira (CI → IPA → TrollStore → rede) em ~1 dia.
 
 ## Riscos
@@ -200,11 +206,13 @@ A fase 0 é a que valida a premissa inteira (CI → IPA → TrollStore → rede)
 | Contrato da API mudar | o iOS vira cliente oficial: regra do `AGENTS.md` (só acrescentar campo/rota) passa a valer |
 | Download interrompido ao bloquear a tela | MVP exige tela aberta; background `URLSession` na fase 6 |
 
-## Decisões abertas
+## Decisões tomadas (as “abertas” do plano original)
 
-1. Ícone do app: reaproveitar `frontend/public/icons` (gerar as medidas com script) ou desenhar novo?
-2. Nome/bundle: `Gramofone` / `dev.marciosouza.gramofone` está bom?
-3. Escopo do MVP aceita ficar sem favoritos/avaliações/listas na primeira versão?
+1. **Ícone**: reaproveitado de `frontend/public/icons`, gerado em 1024 com fundo **full-bleed
+   `#dc2626`** (o PNG original tem alpha; achatar em preto criava uma borda escura).
+2. **Bundle**: `dev.marciosouza.gramofone`.
+3. **Escopo**: o MVP ficou sem favoritos/avaliações/listas de edição; em uso foram adicionadas
+   listas (somente leitura), ordenação e a aba de baixados.
 
 ## Referências
 
@@ -222,7 +230,11 @@ A fase 0 é a que valida a premissa inteira (CI → IPA → TrollStore → rede)
 | 18/11/2026 | 2 | biblioteca (grade, busca, paginação) + detalhe do álbum — validada no iPod |
 | 18/11/2026 | 3–6 | player (fila, background, lock screen), download/offline, fila de scrobble e acabamento — validados no iPod (0.4.0) |
 | 18/11/2026 | 7 | listas de álbuns e músicas (tocar/aleatório), ordenação da biblioteca, aba Baixados com “Tocar tudo” e “Adicionar à fila” — 0.5.0 validada |
-| 18/11/2026 | 7.1 | correções: `/lists` com envelope `data`, controles do player em 320 pt, ícone full-bleed `#dc2626`, **sessão offline** (abre sem rede com o perfil em cache) e flush de scrobble com timer + botão manual — 0.5.1 |
+| 18/11/2026 | 7.1 | correções: `/lists` com envelope `data`, controles do player em 320 pt, ícone full-bleed `#dc2626`, **sessão offline** (abre sem rede com o perfil em cache) e flush de scrobble com timer + botão manual — 0.5.1 validada no iPod |
+
+**Resultado:** cliente instalado e em uso, versão **0.5.1 (build 7)**, publicada em
+`releases/tag/ios-latest`. Documentação de operação em [docs/](docs/): build, instalação,
+arquitetura, API e histórico.
 
 Notas de campo: `macos-14` foi aposentado em 02/11/2026 (o workflow usa `macos-15`); o
 `pymobiledevice3` atual quebrou o `TrollRestore` (API `Command` removida) — a instalação usou a

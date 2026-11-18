@@ -1,70 +1,85 @@
 # Gramofone iOS
 
-Cliente iOS do [Gramofone](https://github.com/MarcioABSouza/gramofone) para **iPod touch 7 (iOS 15.8.8)**: toca a
-biblioteca do servidor na LAN, baixa álbuns para offline e enfileira scrobbles para o Last.fm.
+Cliente iOS do [Gramofone](https://github.com/MarcioABSouza/gramofone) para **iPod touch 7 (iOS
+15.8.8)**: toca a biblioteca do servidor na LAN, baixa álbuns para ouvir offline, navega listas e
+envia os scrobbles ao Last.fm — inclusive os ouvidos sem conexão.
 
-- **Sem Mac e sem iPhone**: compila no CI (GitHub Actions `macos-15`), instala pelo **TrollStore**.
-- **Sem App Store**: o `.ipa` sai sem assinatura do workflow e é instalado no aparelho.
-- **Sem backend novo**: consome apenas endpoints que já existem no Gramofone.
+**A restrição que definiu o projeto: nada de Mac físico e nada de iPhone.** O app compila em CI
+(GitHub Actions / Codemagic) e é instalado pelo **TrollStore**, sem Apple ID, sem App Store e sem
+revisão. O backend não muda: o app consome só endpoints que já existem.
 
-O plano completo (arquitetura, contrato da API, fases e riscos) está em [PLAN.md](./PLAN.md).
+## Instalar
 
-## Status
+No **Safari do iPod**:
 
-| Fase | Estado |
+```
+https://github.com/MarcioABSouza/gramofone-ios/releases/download/ios-latest/Gramofone.ipa
+```
+
+→ **Baixar** → Arquivos → TrollStore → **+**. Instalar por cima preserva sessão e downloads.
+
+Primeira vez no aparelho (TrollStore) e opção de servir o `.ipa` pela LAN: **[docs/INSTALL.md](docs/INSTALL.md)**.
+
+## O que o app faz
+
+| Área | Recurso |
 |---|---|
-| 0 — app mínimo + `GET /api/health` | ✅ validada no iPod (18/11/2026) |
-| 1 — login + sessão no Keychain (refresh rotativo) | ✅ validada no iPod (18/11/2026) |
-| 2 — biblioteca + detalhe do álbum | ✅ validada no iPod (18/11/2026) |
-| 3 — player + tela bloqueada | ✅ validada no iPod (18/11/2026) |
-| 4 — download + offline | ✅ validada no iPod (18/11/2026) |
-| 5 — fila de scrobble | 🚧 implementada, aguardando teste |
-| 6 — acabamento | ✅ validada no iPod (18/11/2026) |
-| 7 — listas, ordenação e baixados | ✅ validada no iPod (18/11/2026) |
-| 7.1 — correções (listas, player 320 pt, ícone, sessão offline, flush) | 🚧 em teste |
+| Sessão | login, refresh rotativo no Keychain (365 d) e **modo offline** com perfil em cache |
+| Biblioteca | grade, busca, paginação, **ordenação** (título/artista/ano/adicionado) |
+| Listas | álbuns e músicas; **Tocar** e **Aleatório** (embaralha as faixas) |
+| Álbum | Tocar · Aleatório · **Adicionar à fila** · Baixar para offline |
+| Baixados | grade offline, **Tocar tudo**, Aleatório, remover download |
+| Player | fila persistente, áudio em segundo plano, tela de bloqueio, repeat, seek |
+| Last.fm | scrobble com fila local, envio automático ao reconectar + envio manual |
 
-O app abre na **Biblioteca** (álbuns com cópia no servidor, busca, paginação, ordenação e aba
-**Baixados** com “Tocar tudo”). Tocar num álbum abre as faixas; tocar numa faixa inicia o player
-(barra fixa no rodapé → tela cheia). O álbum tem **Tocar · Aleatório · Adicionar à fila · Baixar**.
-O menu `⋯` ordena a biblioteca; o `≡` abre as **Listas** (álbuns e músicas, com tocar e aleatório).
+Escopo consciente: **não** tem criação/edição de listas, cifras, notas, favoritos ou avaliações —
+o web e o app Android cobrem isso.
 
 ## Como o build sai daqui
 
-Duas rotas, mesmo comando de build (`xcodegen` + `xcodebuild` sem assinatura):
-
-1. **Codemagic** (`codemagic.yaml`) — sem fila, grátis até 500 min/mês. No painel do app, em
-   *Build configuration*, selecione **codemagic.yaml** (o fluxo automático não serve porque o
-   projeto é gerado). O `.ipa` sai em *Artifacts*. Se o erro citar "deployment target 15.0 is not
-   supported", fixe `environment.xcode: 16.4` no yaml.
-2. **GitHub Actions** (`.github/workflows/ios.yml`) — grátis em repo público, mas o runner macOS é
-   melhor-esforço: já vimos job ficar 15 min na fila e ser cancelado sem nunca ganhar runner.
-
-
 O `.xcodeproj` **não é versionado**: `project.yml` (XcodeGen) é a fonte da verdade e o CI gera o
-projeto. A cada push em `main` (ou `workflow_dispatch`), o workflow:
+projeto. Cada push em `main` compila `Release` para device **sem assinatura**, empacota
+`Payload/` em `Gramofone.ipa`, guarda como artefato (30 dias) e **recria a release `ios-latest`**
+com URL pública.
 
-1. gera o projeto com `xcodegen generate`;
-2. compila `Release` para device com `CODE_SIGNING_ALLOWED=NO`;
-3. empacota `Payload/Gramofone.app` em `Gramofone.ipa`;
-4. publica o `.ipa` como artefato `Gramofone-ipa` (30 dias).
+```bash
+xcodegen generate
+xcodebuild -project Gramofone.xcodeproj -scheme Gramofone -configuration Release \
+  -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+```
 
-## Instalar no iPod (uma vez)
-
-TrollStore via **TrollRestore** (roda em Linux) — passo a passo em `PLAN.md` §Instalação. Depois:
-baixar o `.ipa` no aparelho → TrollStore → *Install IPA*.
+Detalhes (flags, runner `macos-15-intel`, por que não arm64, release x artefato, Codemagic,
+diagnóstico de falhas): **[docs/BUILD.md](docs/BUILD.md)**.
 
 ## Estrutura
 
 ```
-project.yml                      # XcodeGen (fonte da verdade)
+project.yml                     # XcodeGen — projeto, versão, bundle, deployment target
+codemagic.yaml                  # build alternativo (quando o GitHub fica sem runner)
+.github/workflows/ios.yml       # build + release do .ipa
 Gramofone/
   App/        GramofoneApp, RootView, Info.plist
   Core/       APIClient, Session, Keychain, Settings, OfflineStore, NetworkMonitor
-  Models/     Auth, Library
+  Models/     Auth, Library, Lists
   Player/     PlayerController, QueueItem, ScrobbleQueue
-  Offline/    DownloadManager
-  UI/         LoginView, LibraryView, AlbumView, AlbumCell, ListsView, AlbumListPage,
-              SongListPage, PlayerView, MiniPlayer, MainView, AccountView, CoverImage, Theme
-  Resources/  Assets.xcassets (ícone reaproveitado do frontend)
-.github/workflows/ios.yml        # build + artefato
+  Offline/    DownloadManager, OfflineDetail
+  UI/         Login, Library, Album, Lists, AlbumListPage, SongListPage, Player, MiniPlayer,
+              MainView, Account, AlbumCell, CoverImage, Theme
+  Resources/  Assets.xcassets (ícone full-bleed #dc2626, derivado do frontend)
 ```
+
+## Documentação
+
+| Documento | Conteúdo |
+|---|---|
+| [docs/BUILD.md](docs/BUILD.md) | pipeline completo, comandos, CI, versões, diagnóstico |
+| [docs/INSTALL.md](docs/INSTALL.md) | TrollStore via TrollRestore, instalação, primeiros passos |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | camadas, sessão offline, player, fila de scrobble, iOS 15 |
+| [docs/API.md](docs/API.md) | endpoints usados, formatos e armadilhas de contrato |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | histórico 0.1.0 → 0.5.1 |
+| [PLAN.md](PLAN.md) | plano original (fases e critérios de aceite) |
+
+## Status
+
+Todas as fases do plano concluídas e validadas no aparelho — versão atual **0.5.1 (build 7)**.
