@@ -1,8 +1,11 @@
 name: iOS
 
-# Só manual: o runner macOS do GitHub é melhor-esforço (já cancelou job após
-# 15 min de fila). O build do dia a dia roda no Codemagic (codemagic.yaml).
+# Push em main → build → publica o .ipa como asset de release (link público).
+# O runner macOS do GitHub é melhor-esforço (já cancelou job após 15 min de
+# fila); quando travar, use o Codemagic (codemagic.yaml) ou dispare de novo aqui.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -12,6 +15,9 @@ jobs:
     # com Xcode 16 (compila deployment target iOS 15).
     runs-on: macos-15
     timeout-minutes: 30
+    permissions:
+      # Necessário para criar/atualizar o release com o .ipa.
+      contents: write
 
     steps:
       - name: Checkout
@@ -47,10 +53,12 @@ jobs:
           APP="build/Build/Products/Release-iphoneos/Gramofone.app"
           /usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Info.plist"
 
       - name: Empacotar .ipa
         run: |
           APP="build/Build/Products/Release-iphoneos/Gramofone.app"
+          rm -rf Payload Gramofone.ipa
           mkdir -p Payload
           cp -R "$APP" Payload/
           zip -qry Gramofone.ipa Payload
@@ -63,3 +71,24 @@ jobs:
           path: Gramofone.ipa
           retention-days: 30
           if-no-files-found: error
+
+      # Release "ios-latest" reaproveitada a cada build: o link do asset fica
+      # estável e é público (artefato de Action exige login).
+      - name: Publicar IPA em release (link público)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APP="build/Build/Products/Release-iphoneos/Gramofone.app"
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Info.plist")
+          BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Info.plist")
+          MINOS=$(/usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" "$APP/Info.plist")
+
+          gh release delete ios-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create ios-latest Gramofone.ipa \
+            --title "Gramofone iOS — build mais recente" \
+            --notes "Versão **${VERSION}** (build ${BUILD}) · deployment target iOS ${MINOS} · commit \`${GITHUB_SHA::7}\`.
+
+          IPA **sem assinatura**: baixe no iPod e instale pelo **TrollStore** (botão +).
+          Se preferir, baixe direto deste link no Safari do aparelho."
+
+          echo "Release: https://github.com/${GITHUB_REPOSITORY}/releases/download/ios-latest/Gramofone.ipa"
