@@ -11,6 +11,11 @@ enum APIError: LocalizedError {
     case transport(String)
     case http(Int, String?)
 
+    var isUnauthorized: Bool {
+        if case .http(401, _) = self { return true }
+        return false
+    }
+
     var errorDescription: String? {
         switch self {
         case .invalidServerURL:
@@ -53,9 +58,37 @@ final class APIClient {
         serverURL.appendingPathComponent("api")
     }
 
+    // MARK: - Endpoints
+
     func health() async throws -> HealthResponse {
-        try await get(apiBase.appendingPathComponent("health"))
+        try await get("health")
     }
+
+    func authConfig() async throws -> AuthConfig {
+        try await get("auth/config")
+    }
+
+    func login(email: String, password: String) async throws -> AuthResponse {
+        try await post("auth", body: ["email": email, "password": password])
+    }
+
+    func refresh(refreshToken: String) async throws -> RefreshResponse {
+        try await post("auth/refresh", body: ["refreshToken": refreshToken], token: nil)
+    }
+
+    func me(token: String) async throws -> PublicUser {
+        try await get("auth/me", token: token)
+    }
+
+    func logout(refreshToken: String?, token: String?) async {
+        struct Body: Encodable { let refreshToken: String }
+        struct Empty: Decodable { let message: String? }
+
+        let body = refreshToken.map(Body.init(refreshToken:))
+        _ = try? await post("auth/logout", body: body, token: token, decode: Empty.self)
+    }
+
+    // MARK: - URLs auxiliares
 
     /// URL absoluta de um arquivo da biblioteca (`/api/media/<filePath>`).
     ///
@@ -80,10 +113,46 @@ final class APIClient {
         serverURL.appendingPathComponent("api/covers").appendingPathComponent(albumId)
     }
 
-    private func get<T: Decodable>(_ url: URL) async throws -> T {
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+    // MARK: - Transporte
+
+    private func get<T: Decodable>(_ path: String, token: String? = nil) async throws -> T {
+        try await send(method: "GET", path: path, bodyData: nil, token: token)
+    }
+
+    private func post<B: Encodable, T: Decodable>(_ path: String, body: B, token: String? = nil) async throws -> T {
+        let data = try JSONEncoder().encode(body)
+        return try await send(method: "POST", path: path, bodyData: data, token: token)
+    }
+
+    /// POST com corpo opcional (o logout pode ir sem refresh token).
+    private func post<B: Encodable, T: Decodable>(
+        _ path: String,
+        body: B?,
+        token: String?,
+        decode: T.Type
+    ) async throws -> T {
+        let data = try body.map { try JSONEncoder().encode($0) }
+        return try await send(method: "POST", path: path, bodyData: data, token: token)
+    }
+
+    private func send<T: Decodable>(
+        method: String,
+        path: String,
+        bodyData: Data?,
+        token: String?
+    ) async throws -> T {
+        var request = URLRequest(url: apiBase.appendingPathComponent(path))
+        request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        if let token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        if let bodyData {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = bodyData
+        }
 
         do {
             let (data, response) = try await Self.session.data(for: request)
@@ -93,7 +162,7 @@ final class APIClient {
             }
 
             guard (200..<300).contains(http.statusCode) else {
-                throw APIError.http(http.statusCode, Self.shortBody(data))
+                throw APIError.http(http.statusCode, Self.message(from: data))
             }
 
             do {
@@ -110,15 +179,26 @@ final class APIClient {
 
     private static let session: URLSession = {
         let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 15
+        configuration.timeoutIntervalForRequest = 20
         configuration.waitsForConnectivity = false
-        configuration.httpAdditionalHeaders = ["User-Agent": "Gramofone-iOS/0.1"]
+        configuration.httpAdditionalHeaders = ["User-Agent": "Gramofone-iOS/0.2"]
         return URLSession(configuration: configuration)
     }()
 
-    private static func shortBody(_ data: Data) -> String? {
+    /// Extrai `message` do corpo de erro do backend (`{ error, message }`).
+    private static func message(from data: Data) -> String? {
+        guard !data.isEmpty else { return nil }
+
+        if let payload = try? JSONDecoder().decode(ErrorPayload.self, from: data), let message = payload.message {
+            return message
+        }
+
         guard let text = String(data: data, encoding: .utf8) else { return nil }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : String(trimmed.prefix(160))
+    }
+
+    private struct ErrorPayload: Decodable {
+        let message: String?
     }
 }
