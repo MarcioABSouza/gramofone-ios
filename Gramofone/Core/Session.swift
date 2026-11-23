@@ -23,6 +23,7 @@ final class Session: ObservableObject {
     private(set) var client: APIClient?
     private(set) var accessToken: String?
     private var refreshToken: String?
+    private var renewTask: Task<String, Error>?
     private var didRestore = false
 
     private static let refreshAccount = "refresh-token"
@@ -72,10 +73,7 @@ final class Session: ObservableObject {
             isOfflineSession = false
             state = .signedIn(user)
         } catch let error as APIError where error.isUnauthorized {
-            clearSession()
-            removeCachedUser()
-            isOfflineSession = false
-            state = .signedOut(message: "Sessão expirada. Entre novamente.")
+            endExpiredSession()
         } catch {
             if let cached = cachedUser() {
                 isOfflineSession = true
@@ -123,6 +121,11 @@ final class Session: ObservableObject {
         do {
             return try await operation(client, token)
         } catch let error as APIError where error.isUnauthorized {
+            // Outra chamada pode ter renovado o token enquanto esta esperava.
+            if let current = accessToken, current != token {
+                return try await operation(client, current)
+            }
+
             let renewed = try await renew()
             return try await operation(client, renewed)
         }
@@ -130,20 +133,41 @@ final class Session: ObservableObject {
 
     // MARK: - Interno
 
+    /// Uma renovação por vez: chamadas concorrentes esperam a mesma. O refresh é
+    /// rotativo, então dois refresh com o mesmo token fazem o backend revogar
+    /// **todas** as sessões do usuário.
     private func renew() async throws -> String {
+        if let renewTask {
+            return try await renewTask.value
+        }
+
         guard let client, let refresh = refreshToken else {
             throw APIError.http(401, "Sessão não iniciada")
         }
 
-        let refreshed = try await client.refresh(refreshToken: refresh)
-        apply(tokens: refreshed)
-        isOfflineSession = false
-
-        if let token = accessToken {
-            return token
+        let task = Task<String, Error> { [weak self] in
+            do {
+                let refreshed = try await client.refresh(refreshToken: refresh)
+                self?.apply(tokens: refreshed)
+                self?.isOfflineSession = false
+                return refreshed.token
+            } catch let error as APIError where error.isUnauthorized {
+                self?.endExpiredSession()
+                throw error
+            }
         }
 
-        return refreshed.token
+        renewTask = task
+        defer { renewTask = nil }
+        return try await task.value
+    }
+
+    /// Só o 401 do refresh encerra a sessão. Falha de rede mantém o usuário logado.
+    private func endExpiredSession() {
+        clearSession()
+        removeCachedUser()
+        isOfflineSession = false
+        state = .signedOut(message: "Sessão expirada. Entre novamente.")
     }
 
     private func apply(tokens: RefreshResponse) {
