@@ -30,10 +30,11 @@ Primeira vez no aparelho (TrollStore) e opção de servir o `.ipa` pela LAN: **[
 | Álbum | Tocar · Aleatório · **Adicionar à fila** · Baixar para offline |
 | Baixados | grade offline, **Tocar tudo**, Aleatório, remover download |
 | Player | fila persistente, áudio em segundo plano, tela de bloqueio, repeat, seek |
+| Favoritos | **favoritar a música atual** e adicioná-la a uma **playlist existente** (tela cheia; exige rede) |
 | Last.fm | scrobble com fila local, envio automático ao reconectar + envio manual |
 
-Escopo consciente: **não** tem criação/edição de listas, cifras, notas, favoritos ou avaliações —
-o web e o app Android cobrem isso.
+Escopo consciente: **não** tem criação/edição de listas, cifras, notas ou avaliações — o web e o
+app Android cobrem isso.
 
 ## Como o build sai daqui
 
@@ -65,7 +66,7 @@ Gramofone/
   Player/     PlayerController, QueueItem, ScrobbleQueue
   Offline/    DownloadManager, OfflineDetail
   UI/         Login, Library, Album, Lists, AlbumListPage, SongListPage, Player, MiniPlayer,
-              MainView, Account, AlbumCell, CoverImage, Theme
+              AddToListSheet, MainView, Account, AlbumCell, CoverImage, Theme
   Resources/  Assets.xcassets (ícone full-bleed #dc2626, derivado do frontend)
 ```
 
@@ -82,4 +83,4 @@ Gramofone/
 
 ## Status
 
-Todas as fases do plano concluídas e validadas no aparelho — versão atual **0.5.1 (build 7)**.
+Todas as fases do plano concluídas e validadas no aparelho — versão atual **0.6.0 (build 8)**.

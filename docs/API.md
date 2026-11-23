@@ -51,6 +51,18 @@ albumArtistId, duration, filePath}` — mapeia 1:1 para `QueueItem`.
 
 `SongListDetail.list` **não** traz `itemCount` (o record não tem); a contagem vem de `items.length`.
 
+## Favoritos e playlists de músicas
+
+| Chamada | Uso |
+|---|---|
+| `GET /songs/:songId/interaction` | `{isFavorite, rating}` — estado do favorito da música atual |
+| `POST /songs/:songId/favorite` | **alterna** o favorito e devolve o estado. Não é idempotente: em falha, reler o estado antes de tentar de novo |
+| `GET /song-lists?system=1` | inclui a lista virtual **Favoritas** (`system: true`, id `favorites`) |
+| `POST /song-lists/:listId/songs/:songId` | adiciona a música a uma playlist existente → 201 `{message}` |
+
+O app só adiciona a playlists existentes (a lista `system` é filtrada do seletor). Sem rede, as
+ações ficam desabilitadas.
+
 ## Reprodução e Last.fm
 
 | Chamada | Corpo |

@@ -3,6 +3,22 @@
 Datas em 2026. Todas as versões foram publicadas como `.ipa` sem assinatura em
 `releases/tag/ios-latest` e instaladas via TrollStore no iPod touch 7 (iOS 15.8.8).
 
+## 0.6.0 — build 8
+
+- **Favoritar a música atual** no player em tela cheia (coração; reflete o estado do servidor).
+- **Adicionar a música atual a uma playlist existente** (sheet com as playlists do usuário). Se a
+  música já estiver na playlist, o servidor responde 409 e a sheet avisa, sem dizer que foi adicionada.
+- **Favoritas** aparece na aba Listas (somente leitura).
+- Favorito e playlist ficam desabilitados sem rede; tocar baixados continua funcionando.
+- **Downloads cancelados não voltam**: remover um álbum durante o download não grava mais o manifesto.
+- **Sessão**: renovações concorrentes compartilham uma só chamada (o refresh é rotativo; duas
+  chamadas com o mesmo token faziam o servidor revogar todas as sessões). Sessão só encerra com
+  401 do refresh — falha de rede mantém o usuário logado.
+- **Manifesto tolerante**: uma faixa malformada não derruba o álbum; pastas com manifesto ilegível
+  aparecem como aviso na Conta, sem apagar nada.
+- Instalação por cima da 0.5.1 preserva os downloads (mesmo bundle ID; formato do manifesto só ganhou
+  leitura tolerante).
+
 ## 0.5.1 — build 7 (18/11/2026)
 
 Correções reportadas no aparelho:

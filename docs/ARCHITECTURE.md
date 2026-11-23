@@ -11,7 +11,7 @@ Gramofone/
 ├── Player/       PlayerController, QueueItem, ScrobbleQueue
 ├── Offline/      DownloadManager, OfflineDetail
 └── UI/           Login, Library, Album, Lists, AlbumListPage, SongListPage, Player, MiniPlayer,
-                  MainView, Account, AlbumCell, CoverImage, Theme
+                  AddToListSheet, MainView, Account, AlbumCell, CoverImage, Theme
 ```
 
 ## Composição e estado
