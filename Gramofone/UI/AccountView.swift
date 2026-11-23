@@ -49,6 +49,10 @@ struct AccountView: View {
                     row("Álbuns baixados", "\(downloads.downloaded.count)")
                     row("Espaço usado", downloads.totalBytesLabel)
 
+                    if unreadableCount > 0 {
+                        row("Manifestos ilegíveis", "\(unreadableCount)")
+                    }
+
                     if !downloads.downloaded.isEmpty {
                         Button("Remover todos os downloads", role: .destructive) {
                             confirmRemoveAll = true
@@ -75,7 +79,7 @@ struct AccountView: View {
                 }
 
                 Section {
-                    Text("Gramofone iOS 0.5.1")
+                    Text("Gramofone iOS 0.6.0")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
@@ -99,6 +103,10 @@ struct AccountView: View {
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
+    }
+
+    private var unreadableCount: Int {
+        OfflineStore.unreadableCount()
     }
 
     private func row(_ label: String, _ value: String) -> some View {

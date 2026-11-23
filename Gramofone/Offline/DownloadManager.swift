@@ -14,6 +14,9 @@ final class DownloadManager: ObservableObject {
 
     private var session: Session?
     private var tasks: [String: Task<Void, Never>] = [:]
+    /// Tentativa atual de cada álbum: uma tarefa cancelada não pode mexer no progresso,
+    /// no manifesto ou na tarefa de uma nova tentativa do mesmo álbum.
+    private var runs: [String: UUID] = [:]
 
     func configure(session: Session) {
         self.session = session
@@ -40,10 +43,15 @@ final class DownloadManager: ObservableObject {
 
         progress[albumId] = Progress(done: 0, total: playable.count, error: nil)
 
+        let run = UUID()
+        runs[albumId] = run
+
         tasks[albumId] = Task { [weak self] in
             guard let self else { return }
+            defer { self.finish(albumId, run: run) }
 
             do {
+                try Task.checkCancellation()
                 try FileManager.default.createDirectory(
                     at: OfflineStore.albumDirectory(albumId),
                     withIntermediateDirectories: true
@@ -52,6 +60,8 @@ final class DownloadManager: ObservableObject {
                 var offlineTracks: [OfflineTrack] = []
 
                 for (offset, track) in playable.enumerated() {
+                    try Task.checkCancellation()
+
                     guard let filePath = track.filePath else { continue }
                     guard let url = self.session?.client?.mediaURL(path: filePath) else {
                         throw URLError(.badURL)
@@ -61,6 +71,7 @@ final class DownloadManager: ObservableObject {
                     let destination = OfflineStore.albumDirectory(albumId).appendingPathComponent(fileName)
 
                     let (temporary, response) = try await URLSession.shared.download(from: url)
+                    try Task.checkCancellation()
 
                     if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
                         throw URLError(.badServerResponse)
@@ -81,10 +92,13 @@ final class DownloadManager: ObservableObject {
                         )
                     )
 
-                    self.progress[albumId]?.done = offset + 1
+                    if self.runs[albumId] == run {
+                        self.progress[albumId]?.done = offset + 1
+                    }
                 }
 
                 await self.saveCover(for: album, albumId: albumId)
+                try Task.checkCancellation()
 
                 let manifest = OfflineAlbum(
                     albumId: albumId,
@@ -98,18 +112,27 @@ final class DownloadManager: ObservableObject {
                 try OfflineStore.save(manifest)
                 self.downloaded.insert(albumId)
                 self.progress[albumId] = nil
+            } catch is CancellationError {
+                // Removido pelo usuário durante o download: nada a reportar.
             } catch {
-                self.progress[albumId]?.error = (error as? LocalizedError)?.errorDescription
-                    ?? error.localizedDescription
+                if self.runs[albumId] == run {
+                    self.progress[albumId]?.error = (error as? LocalizedError)?.errorDescription
+                        ?? error.localizedDescription
+                }
             }
-
-            self.tasks[albumId] = nil
         }
+    }
+
+    private func finish(_ albumId: String, run: UUID) {
+        guard runs[albumId] == run else { return }
+        runs[albumId] = nil
+        tasks[albumId] = nil
     }
 
     func remove(albumId: String) {
         tasks[albumId]?.cancel()
         tasks[albumId] = nil
+        runs[albumId] = nil
         progress[albumId] = nil
 
         OfflineStore.remove(albumId)
