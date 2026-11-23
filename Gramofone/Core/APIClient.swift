@@ -6,6 +6,10 @@ struct HealthResponse: Decodable {
     let uptime: Double
 }
 
+struct MessageResponse: Decodable {
+    let message: String?
+}
+
 enum APIError: LocalizedError {
     case invalidServerURL
     case transport(String)
@@ -123,8 +127,13 @@ final class APIClient {
         try await get("lists/" + id, token: token)
     }
 
+    /// Inclui a lista virtual "Favoritas" (`system = true`), que tem id `favorites`.
     func songLists(token: String) async throws -> [SongListSummary] {
-        let response: SongListsResponse = try await get("song-lists", token: token)
+        let response: SongListsResponse = try await get(
+            "song-lists",
+            query: [URLQueryItem(name: "system", value: "1")],
+            token: token
+        )
         return response.data
     }
 
@@ -170,6 +179,28 @@ final class APIClient {
 
         let body = refreshToken.map(Body.init(refreshToken:))
         _ = try? await post("auth/logout", body: body, token: token, decode: Empty.self)
+    }
+
+    // MARK: - Favoritos e playlists de músicas
+
+    /// Estado do favorito para o usuário logado (`GET /songs/:id/interaction`).
+    func songStatus(songId: String, token: String) async throws -> SongStatus {
+        try await get("songs/" + songId + "/interaction", token: token)
+    }
+
+    /// Alterna o favorito. **Não é idempotente**: em falha, reler o estado antes de tentar de novo.
+    func toggleFavorite(songId: String, token: String) async throws -> SongStatus {
+        try await send(method: "POST", path: "songs/" + songId + "/favorite", bodyData: nil, token: token)
+    }
+
+    /// Adiciona a música a uma playlist existente (`POST /song-lists/:id/songs/:songId`).
+    func addSong(_ songId: String, toList listId: String, token: String) async throws {
+        let _: MessageResponse = try await send(
+            method: "POST",
+            path: "song-lists/" + listId + "/songs/" + songId,
+            bodyData: nil,
+            token: token
+        )
     }
 
     // MARK: - Reprodução e Last.fm
@@ -335,7 +366,7 @@ final class APIClient {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 20
         configuration.waitsForConnectivity = false
-        configuration.httpAdditionalHeaders = ["User-Agent": "Gramofone-iOS/0.2"]
+        configuration.httpAdditionalHeaders = ["User-Agent": "Gramofone-iOS/0.6.0"]
         return URLSession(configuration: configuration)
     }()
 

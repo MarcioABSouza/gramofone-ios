@@ -3,10 +3,17 @@ import SwiftUI
 /// Tela cheia do player (abre pela mini barra).
 struct PlayerView: View {
     @EnvironmentObject private var player: PlayerController
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var network: NetworkMonitor
     @Environment(\.dismiss) private var dismiss
 
     @State private var isScrubbing = false
     @State private var scrubValue: Double = 0
+    @State private var isFavorite = false
+    @State private var favoriteReady = false
+    @State private var favoriteBusy = false
+    @State private var showingAddToList = false
+    @State private var note: String?
 
     var body: some View {
         ZStack {
@@ -36,11 +43,19 @@ struct PlayerView: View {
 
                         progressBar
                         controls
+                        songActions(item)
 
                         if let error = player.errorMessage {
                             Label(error, systemImage: "exclamationmark.triangle")
                                 .font(.footnote)
                                 .foregroundColor(.orange)
+                        }
+
+                        if let note {
+                            Label(note, systemImage: "checkmark.circle")
+                                .font(.footnote)
+                                .foregroundColor(.zinc400)
+                                .multilineTextAlignment(.center)
                         }
 
                         queueList
@@ -52,6 +67,54 @@ struct PlayerView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
+            }
+            .task(id: player.currentItem?.songId) {
+                await loadFavorite()
+            }
+        }
+        .sheet(isPresented: $showingAddToList) {
+            if let songId = player.currentItem?.songId {
+                AddToListSheet(songId: songId, onAdded: { name in
+                    note = "Adicionada a \(name)"
+                })
+            }
+        }
+    }
+
+    private func songActions(_ item: QueueItem) -> some View {
+        let songId = item.songId
+        let enabled = songId != nil && network.isOnline
+
+        return VStack(spacing: 6) {
+            HStack(spacing: 14) {
+                Button {
+                    guard let songId else { return }
+                    Task { await toggleFavorite(songId: songId) }
+                } label: {
+                    Image(systemName: isFavorite ? "heart.fill" : "heart")
+                        .font(.system(size: 22))
+                        .foregroundColor(isFavorite ? .brand : .zinc400)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .disabled(!enabled || !favoriteReady || favoriteBusy)
+                .opacity(enabled ? 1 : 0.4)
+
+                Button {
+                    showingAddToList = true
+                } label: {
+                    Label("Adicionar à playlist", systemImage: "text.badge.plus")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.bordered)
+                .tint(.brand)
+                .disabled(!enabled)
+            }
+
+            if !network.isOnline {
+                Text("Favoritos e playlists precisam de conexão.")
+                    .font(.caption)
+                    .foregroundColor(.zinc500)
             }
         }
     }
@@ -198,6 +261,53 @@ struct PlayerView: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    private func loadFavorite() async {
+        favoriteReady = false
+        note = nil
+
+        guard let songId = player.currentItem?.songId, network.isOnline else { return }
+
+        do {
+            let status: SongStatus = try await session.authorized { client, token in
+                try await client.songStatus(songId: songId, token: token)
+            }
+            guard player.currentItem?.songId == songId else { return }
+            isFavorite = status.isFavorite
+            favoriteReady = true
+        } catch {
+            guard !Task.isCancelled else { return }
+            note = message(for: error)
+        }
+    }
+
+    /// O toggle não é idempotente: em falha, lê o estado real antes de qualquer nova tentativa.
+    private func toggleFavorite(songId: String) async {
+        guard !favoriteBusy else { return }
+        favoriteBusy = true
+        note = nil
+        defer { favoriteBusy = false }
+
+        do {
+            let status: SongStatus = try await session.authorized { client, token in
+                try await client.toggleFavorite(songId: songId, token: token)
+            }
+            guard player.currentItem?.songId == songId else { return }
+            isFavorite = status.isFavorite
+        } catch {
+            let actual: SongStatus? = try? await session.authorized { client, token in
+                try await client.songStatus(songId: songId, token: token)
+            }
+            if let actual, player.currentItem?.songId == songId {
+                isFavorite = actual.isFavorite
+            }
+            note = message(for: error)
+        }
+    }
+
+    private func message(for error: Error) -> String {
+        (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
     }
 
     private func subtitle(_ item: QueueItem) -> String {

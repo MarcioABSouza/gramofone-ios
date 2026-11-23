@@ -135,3 +135,8 @@ struct SongListDetail: Decodable {
 struct SongListsResponse: Decodable {
     let data: [SongListSummary]
 }
+
+/// Estado de uma música para o usuário logado (`/songs/:id/interaction`).
+struct SongStatus: Decodable {
+    let isFavorite: Bool
+}

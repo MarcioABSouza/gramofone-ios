@@ -101,7 +101,7 @@ struct ListsView: View {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                                     .fill(Color.zinc800)
-                                Image(systemName: "music.note.list")
+                                Image(systemName: list.system == true ? "heart.fill" : "music.note.list")
                                     .foregroundColor(.brand)
                             }
                             .frame(width: 56, height: 56)
